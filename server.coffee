@@ -1,5 +1,6 @@
 restify = require('restify')
 http = require('http')
+config = require('./config').config
 
 server = restify.createServer
 	name:'dictionary'
@@ -22,8 +23,7 @@ options =
 		'Accept': "application/json"
 		'Referer': 'http://translate.google.fr/'
 		'Cache-Control': 'no-cache'
-		"Cookie": 'NID=67=sTzHHeJJ2P5GVOCC959D4-ZmbsXhj1wX5XzhwyNacFEuu2cuoeKQ4QOQbrzcPepfoTWSJgMrG3s1KwC31w4KbZPaNgodRiyKUY6-S82P0R0i-9WmxXcsdGA9s45NdnE3izkix12dLxPsL9wAoS6eZ_AIWZbJVdvF7tp3m96F73VHUqX5tbQB1jSb; SID=DQAAAM4AAAC0G_nOz9AKUKNCoKG2WsBsFGAi3iCMUaeEyMQm3WLe6VJUqLZUDJU-BXcSAT3nDAOI6LrKIijaFj_vz1avtkX9gb5wrVT3Om5SPKJ46Ac7H5hFycV_tLHQcAXZGP3WMK6tndiOFQmac49TExY52TCODwxLs5jTPalnrOR0ZtlJ49rsCfYRRykpxnIPXz6uwzxNw047FJhWZg7OKTSbTuec3GRhMFfHP5TXV36Gvk1xWI84XwEizBxNuvlBvkv6UtNinNhgKegYOcNenuWh4U1H; HSID=A7BtjtWMZMIqinOpV; APISID=11l1obYAd3eTzajT/ApkaSfhKtSKMRe5YU; PREF=ID=8bb4d2da073784c9:U=53603e0efd86eb82:FF=0:LD=fr:TM=1382883096:LM=1393247037:S=g02UUGzV2Dc1foVC; _ga=GA1.3.994125403.1384938978'
-
+		
 server.get 'fr.wikipedia.org/w/api.php', (req, res, next) ->
 	if req.params.search?
 		result = [req.params.search,[req.params.search]]
@@ -31,8 +31,29 @@ server.get 'fr.wikipedia.org/w/api.php', (req, res, next) ->
 		res.send result
 		return
 
-	options.path = options._path+encodeURIComponent(req.params.page.replace(/_/g,' '))
-	query = http.request options, (result) ->
+	query req.params.page.replace(/_/g,' '), (json) ->
+		response = """<?xml version="1.0"?><api><parse displaytitle="#{json.query} -› #{json.translation}"><redirects /><text xml:space="preserve">
+			&lt;h1&gt; #{json.query} -› #{json.translation} &lt;/h1&gt;"""
+
+		for el in json.types
+			response += """&lt;h3&gt; #{el.name} &lt;/h3&gt;
+				&lt;ul&gt;"""
+			for translation in el.data
+				response += """&lt;li&gt;&lt;b&gt; #{translation.translation} &lt;/b&gt;
+					- &lt;i&gt; #{translation.syn.join(', ')} &lt;/i&gt; &lt;/li&gt;"""
+			response += '&lt;/ul&gt;'
+		response += "</text></parse></api>"
+		res.header('Content-Type','application/xml')
+		res.send response
+
+server.get 'api.json', (req, res, next) ->
+	query req.params.page.replace(/_/g,' '), (json) ->
+		res.send json
+	
+
+query = (search,fn) ->
+	options.path = options._path+encodeURIComponent(search)
+	request = http.request options, (result) ->
 		if result.statusCode isnt 200
 			res.send {statusCode:result.statusCode}
 			console.log result.headers
@@ -42,24 +63,13 @@ server.get 'fr.wikipedia.org/w/api.php', (req, res, next) ->
 		result.on "data", (d) ->
 			data+= d.toString()
 		result.on "end", ->
-			json = extract(JSON.parse(data.replace(/,,+/g,',')))
-			response = """<?xml version="1.0"?><api><parse displaytitle="#{json.query} -› #{json.translation}"><redirects /><text xml:space="preserve">
-				&lt;h1&gt; #{json.query} -› #{json.translation} &lt;/h1&gt;"""
+			json = extract(JSON.parse(data.replace(/,(?=,)/g,',[]')))
+			fn(json)
 
-			for el in json.types
-				response += """&lt;h3&gt; #{el.name} &lt;/h3&gt;
-					&lt;ul&gt;"""
-				for translation in el.data
-					response += """&lt;li&gt;&lt;b&gt; #{translation.translation} &lt;/b&gt;
-						- &lt;i&gt; #{translation.syn.join(', ')} &lt;/i&gt; &lt;/li&gt;"""
-				response += '&lt;/ul&gt;'
-			response += "</text></parse></api>"
-			res.header('Content-Type','application/xml')
-			res.send response
-
-	query.on 'error', (e) ->
+	request.on 'error', (e) ->
 		console.log "erreur",e
-	query.end()
+	request.end()
+
 
 extract = (e) ->
 	console.log JSON.stringify(e)
@@ -77,5 +87,5 @@ extract = (e) ->
 
 	return a
 
-server.listen 8345, ->
-	console.log 'lookup-api.uto.io'
+server.listen config.port, ->
+	console.log 'lookup-api.uto.io, localhost:'+config.port
