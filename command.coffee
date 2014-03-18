@@ -44,7 +44,7 @@ query = (fn,version=1) ->
 	request.on 'error', (e) ->
 		if e.code is "ECONNREFUSED"
 			console.log "Le service n'est pas lancé".bold.red.underline
-			console.log "$ ".green,"cd '#{__dirname}' && coffee server.coffee 1>/dev/null 2>&1 &"
+			console.log "› ", "cd '#{__dirname}'".blue," && ","coffee server.coffee 1>/dev/null 2>&1 &".blue
 		else 
 			console.log "Erreur apparue"
 	request.end()
