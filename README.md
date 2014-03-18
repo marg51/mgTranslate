@@ -4,7 +4,7 @@
 
 ![gif](http://i.uto.io/jUyNT)
 
-As in v0.0.1, it allows only EN->FR
+In v0.0.1, it allows only EN->FR
 
 ### Installation
 
@@ -60,7 +60,8 @@ server {
                 proxy_pass       http://127.0.0.1:8346;
                 proxy_http_version 1.1;
         }
-}```
+}
+```
 
 Don't forget to reload nginx `sudo nginx -s reload`
 
@@ -141,7 +142,7 @@ The very first goal of this project, was to allow the triple-tap (Mac OS X) to t
 
 ## Warnings
 
-It is only for private and personal use. Use it at your own risk
+It is only for private and personal use. Use it at your own risk.
 This project use google translate. Please read https://developers.google.com/translate/v2/terms
 
 ##
